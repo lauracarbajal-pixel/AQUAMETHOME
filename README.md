@@ -80,6 +80,3 @@ La navegación se maneja con un estado simple (`currentScreen`) en `App.js`, sin
 - Notificaciones push de alertas de nivel bajo y crítico.
 - Pantallas completas de Alertas, Historial y Recompensas.
 
-## Notas
-
-`app.json` referencia imágenes en `./assets/` (icono, splash, favicon) que aún no están en el repositorio; agrégalas antes de generar una build de producción.
