@@ -20,4 +20,4 @@ jobs:
         curl -X POST \
           -H 'Content-Type: application/json' \
           -d '{"embeds":[{"title":"Build ${{ needs.build.outputs.build_id }}","description":"Status: ${{ needs.build.status }}","color":${{ needs.build.status == 'success' ? 0x57f287 : 0xff5555 }}}]}' \
-          https://discord.com/api/webhooks/1555785705953820812/Wu490BHIrXA14Yc3zG35VHnwYx54BRBMCtRIlTAEKmM__1B6OxYMRBXWOV4toA4SCmq2  
+          https://discord.com/api/webhooks/1555785705953820812/Wu490BHIrXA14Yc3zG35VHnwYx54BRBMCtRIlTAEKmM__1B6OxYMRBXWOV4toA4SCmq2 
