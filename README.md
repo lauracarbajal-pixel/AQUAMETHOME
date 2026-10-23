@@ -79,4 +79,5 @@ La navegación se maneja con un estado simple (`currentScreen`) en `App.js`, sin
 - Persistencia de la configuración del tinaco.
 - Notificaciones push de alertas de nivel bajo y crítico.
 - Pantallas completas de Alertas, Historial y Recompensas.
+- PRUEBAS PRUEBAS 
 
