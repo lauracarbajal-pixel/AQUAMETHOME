@@ -5,9 +5,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AQUAMETLogo from '../components/AQUAMETLogo';
 import WaterMascot from '../components/WaterMascot';
 import FloatingInput from '../components/FloatingInput';
@@ -16,10 +16,16 @@ import { COLORS } from '../theme/colors';
 export default function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('laura.carbajal@aquamet.mx');
   const [password, setPassword] = useState('123456789');
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <View style={styles.safeArea}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingTop: insets.top + 15, paddingBottom: insets.bottom + 30 },
+        ]}
+      >
         {/* Header Logo */}
         <AQUAMETLogo size="large" />
 
@@ -77,7 +83,7 @@ export default function LoginScreen({ onLogin }) {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

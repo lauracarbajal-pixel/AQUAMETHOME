@@ -1,22 +1,35 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from './Icon';
+import { COLORS } from '../theme/colors';
 
-export function HeaderWithBack({ title, onBack }) {
+// Barra superior azul. `onBack` es opcional (las pestañas principales no tienen flecha).
+export function HeaderWithBack({ title, onBack, right, centered = false }) {
+  const insets = useSafeAreaInsets();
+  const showSideSlots = centered || right;
+
   return (
-    <View style={styles.headerBar}>
-      <TouchableOpacity style={styles.backButton} onPress={onBack}>
-        <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M19 12H5M5 12L12 19M5 12L12 5"
-            stroke="#FFFFFF"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>{title}</Text>
+    <View style={[styles.headerBar, { paddingTop: insets.top + 12 }]}>
+      {onBack ? (
+        <TouchableOpacity
+          style={styles.side}
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Icon name="back" color={COLORS.white} strokeWidth={2.5} />
+        </TouchableOpacity>
+      ) : showSideSlots ? (
+        <View style={styles.side} />
+      ) : null}
+
+      <Text style={[styles.headerTitle, centered && styles.centeredTitle]} numberOfLines={1}>
+        {title}
+      </Text>
+
+      {showSideSlots ? <View style={[styles.side, styles.sideRight]}>{right}</View> : null}
     </View>
   );
 }
@@ -31,21 +44,29 @@ export function ProgressBar({ progress = 0.33 }) {
 
 const styles = StyleSheet.create({
   headerBar: {
-    backgroundColor: '#0F6CBD',
+    backgroundColor: COLORS.header,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 45,
-    paddingBottom: 15,
+    paddingBottom: 14,
     paddingHorizontal: 16,
+    minHeight: 56,
   },
-  backButton: {
-    padding: 6,
-    marginRight: 10,
+  side: {
+    width: 40,
+    height: 34,
+    justifyContent: 'center',
+  },
+  sideRight: {
+    alignItems: 'flex-end',
   },
   headerTitle: {
-    color: '#FFFFFF',
+    flex: 1,
+    color: COLORS.white,
     fontSize: 20,
     fontWeight: '700',
+  },
+  centeredTitle: {
+    textAlign: 'center',
   },
   progressContainer: {
     height: 8,
