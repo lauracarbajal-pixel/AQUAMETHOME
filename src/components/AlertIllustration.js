@@ -13,13 +13,13 @@ function WarningTriangle() {
   );
 }
 
-// type: 'leak' | 'lid'.  withWarning agrega el triángulo rojo.
+// type: 'leak' | 'lid' | 'level'.  withWarning agrega el triángulo rojo.
 export default function AlertIllustration({ type, size = 96, withWarning }) {
-  const showWarning = withWarning ?? type === 'lid';
+  const showWarning = withWarning ?? type !== 'leak';
 
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100">
-      {type === 'leak' ? (
+      {type === 'leak' || type === 'level' ? (
         <G>
           <Path
             d="M40 12 C40 12 14 44 14 62 C14 78 26 89 40 89 C54 89 66 78 66 62 C66 44 40 12 40 12 Z"
@@ -28,10 +28,14 @@ export default function AlertIllustration({ type, size = 96, withWarning }) {
             strokeWidth={3}
           />
           <Path d="M25 62 C25 54 30 46 33 42" stroke="#FFFFFF" strokeWidth={4} strokeLinecap="round" opacity={0.75} fill="none" />
-          <Circle cx={70} cy={24} r={14} fill="#FCD9B6" stroke={OUTLINE} strokeWidth={3} />
-          <SvgText x={70} y={31} fontSize={19} fontWeight="bold" fill={OUTLINE} textAnchor="middle">
-            ?
-          </SvgText>
+          {type === 'leak' ? (
+            <>
+              <Circle cx={70} cy={24} r={14} fill="#FCD9B6" stroke={OUTLINE} strokeWidth={3} />
+              <SvgText x={70} y={31} fontSize={19} fontWeight="bold" fill={OUTLINE} textAnchor="middle">
+                ?
+              </SvgText>
+            </>
+          ) : null}
         </G>
       ) : (
         <G>

@@ -1,51 +1,14 @@
-// Datos simulados mientras no hay conexión con el sensor ni con el backend.
+// Datos simulados. El nivel, las alertas y el historial de nivel vienen del sensor (ver AppContext).
 
 export const INITIAL_TANK = {
   capacity: 1100,
   location: 'Azotea',
-  level: 72,
+  level: 0,
   minLevel: 35,
   criticalLevel: 15,
-  lastUpdate: '10:07 AM',
+  lastUpdate: null, // timestamp de la última lectura del sensor
   sensorModel: 'AM-01',
 };
-
-// Nivel del tinaco (%) por día
-export const LEVEL_HISTORY = [
-  {
-    label: 'Últimos 7 días',
-    points: [
-      { day: '10', month: 'Oct', value: 68 },
-      { day: '11', month: 'Oct', value: 66 },
-      { day: '12', month: 'Oct', value: 58 },
-      { day: '13', month: 'Oct', value: 34 },
-      { day: '14', month: 'Oct', value: 68 },
-      { day: '15', month: 'Oct', value: 31 },
-      { day: '16', month: 'Oct', value: 70 },
-    ],
-  },
-  {
-    label: 'Semana anterior',
-    points: [
-      { day: '3', month: 'Oct', value: 75 },
-      { day: '4', month: 'Oct', value: 70 },
-      { day: '5', month: 'Oct', value: 62 },
-      { day: '6', month: 'Oct', value: 55 },
-      { day: '7', month: 'Oct', value: 80 },
-      { day: '8', month: 'Oct', value: 72 },
-      { day: '9', month: 'Oct', value: 64 },
-    ],
-  },
-];
-
-// type: 'info' | 'warning' | 'critical' | 'success'
-export const EVENT_LOG = [
-  { id: 'e1', date: '16 Oct', time: '10:09 AM', text: 'Actualización de nivel: 72%', type: 'info' },
-  { id: 'e2', date: '15 Oct', time: '2:00 PM', text: 'Nivel bajo crítico (recargado)', type: 'critical' },
-  { id: 'e3', date: '15 Oct', time: '9:00 AM', text: 'Nivel 35% (alerta de nivel bajo)', type: 'warning' },
-  { id: 'e4', date: '14 Oct', time: '7:30 PM', text: 'Recarga completa: 98%', type: 'success' },
-  { id: 'e5', date: '13 Oct', time: '6:15 PM', text: 'Nivel 34% (alerta de nivel bajo)', type: 'warning' },
-];
 
 // Litros consumidos por día: semana actual vs. semana pasada
 export const WEEKLY_CONSUMPTION = [
@@ -60,52 +23,18 @@ export const WEEKLY_CONSUMPTION = [
 
 export const DAILY_GOAL_LITERS = 100;
 
-// status: 'pending' | 'reviewing' | 'resolved'
-export const INITIAL_ALERTS = [
-  {
-    id: 'a1',
-    type: 'leak',
-    title: 'Posible fuga detectada',
-    summary: 'Caída inusual del nivel de agua',
-    date: 'Hoy',
-    detectedAt: '09:45',
-    metric: { label: 'Tasa de caída de nivel', value: '-0.5 L/min', trend: 'down' },
-    status: 'pending',
-  },
-  {
-    id: 'a2',
-    type: 'lid',
-    title: 'Tapa abierta',
-    summary: 'La tapa del tinaco no está cerrada',
-    date: 'Hoy',
-    detectedAt: '08:30',
-    metric: { label: 'Tiempo abierta', value: '25 min' },
-    status: 'pending',
-  },
-  {
-    id: 'a3',
-    type: 'leak',
-    title: 'Posible fuga detectada',
-    summary: 'Caída inusual del nivel de agua',
-    date: 'Ayer',
-    detectedAt: '22:10',
-    metric: { label: 'Tasa de caída de nivel', value: '-0.3 L/min', trend: 'down' },
-    status: 'pending',
-  },
-  {
-    id: 'a4',
-    type: 'lid',
-    title: 'Tapa abierta',
-    summary: 'La tapa del tinaco no está cerrada',
-    date: '14 Oct',
-    detectedAt: '18:05',
-    metric: { label: 'Tiempo abierta', value: '10 min' },
-    status: 'resolved',
-  },
-];
-
 // Contenido de cada tipo de alerta
 export const ALERT_TYPES = {
+  level: {
+    recommendations: ['Programar el llenado del tinaco', 'Reducir el consumo mientras se recupera el nivel'],
+    steps: [
+      'Verifique que la llave de llenado o la bomba estén abiertas',
+      'Confirme que hay suministro de agua',
+      'Vigile que el nivel comience a subir',
+    ],
+    confirmLabel: 'Presione aquí para confirmar que el nivel se recuperó',
+    confirmedLabel: 'Nivel recuperado',
+  },
   leak: {
     recommendations: ['Inspeccionar válvulas', 'Buscar humedad visible'],
     steps: [
