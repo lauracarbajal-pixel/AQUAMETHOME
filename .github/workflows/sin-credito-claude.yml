@@ -1,0 +1,30 @@
+name: Quitar crédito de Claude en PR
+
+# Elimina de la descripción del pull request las líneas de atribución a Claude
+# ("Generated with Claude Code", "Co-Authored-By: Claude ...").
+# No modifica commits ni su historial.
+
+on:
+  pull_request:
+    types: [opened, edited, reopened]
+
+jobs:
+  limpiar:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Quitar líneas de atribución de la descripción
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$PR_BODY" > original.txt
+          grep -viE 'generated with.*claude|co-authored-by:.*(claude|anthropic)' original.txt > limpio.txt || true
+
+          # Solo edita si hubo cambios (evita un ciclo de eventos "edited")
+          if ! cmp -s original.txt limpio.txt; then
+            gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file limpio.txt
+          fi
