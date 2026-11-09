@@ -5,22 +5,31 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { HeaderWithBack, ProgressBar } from '../components/HeaderWithBack';
 import FloatingInput from '../components/FloatingInput';
+import { useApp } from '../context/AppContext';
 import { COLORS } from '../theme/colors';
 
 export default function SetupStep1Screen({ onNext, onBack }) {
-  const [capacity, setCapacity] = useState('1100');
-  const [location, setLocation] = useState('Azotea');
+  const { tank, updateTank } = useApp();
+  const [capacity, setCapacity] = useState(String(tank.capacity));
+  const [location, setLocation] = useState(tank.location);
+  const capacityNumber = parseInt(capacity, 10);
+  const capacityValid = Number.isFinite(capacityNumber) && capacityNumber > 0;
+
+  const handleNext = () => {
+    if (!capacityValid) return;
+    updateTank({ capacity: capacityNumber, location });
+    onNext();
+  };
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const locationsList = ['Azotea', 'Jardín', 'Patio Trasero', 'CISTERNA'];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <HeaderWithBack title="Configurar mi tinaco" onBack={onBack} />
       <ProgressBar progress={0.33} />
 
@@ -94,11 +103,16 @@ export default function SetupStep1Screen({ onNext, onBack }) {
         </View>
 
         {/* Action Button */}
-        <TouchableOpacity style={styles.primaryButton} onPress={onNext}>
+        {!capacityValid ? <Text style={styles.errorText}>Ingresa una capacidad válida en litros.</Text> : null}
+        <TouchableOpacity
+          style={[styles.primaryButton, !capacityValid && { opacity: 0.45 }]}
+          onPress={handleNext}
+          disabled={!capacityValid}
+        >
           <Text style={styles.primaryButtonText}>Siguiente</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -211,6 +225,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748B',
     marginTop: 2,
+  },
+  errorText: {
+    color: COLORS.danger,
+    fontSize: 13,
+    marginBottom: 6,
   },
   primaryButton: {
     backgroundColor: '#0F6CBD',

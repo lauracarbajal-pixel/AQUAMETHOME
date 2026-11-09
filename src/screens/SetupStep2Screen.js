@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   Alert,
 } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -32,8 +31,8 @@ export default function SetupStep2Screen({ onNext, onBack }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <HeaderWithBack title="Configurar mi tinaco" onBack={onBack} />
+    <View style={styles.safeArea}>
+      <HeaderWithBack title="Configuración del Sensor" onBack={onBack} />
       <ProgressBar progress={0.66} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -130,7 +129,7 @@ export default function SetupStep2Screen({ onNext, onBack }) {
           <Text style={styles.outlineButtonText}>Siguiente</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

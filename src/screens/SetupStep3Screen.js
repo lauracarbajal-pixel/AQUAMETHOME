@@ -5,19 +5,26 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
 } from 'react-native';
 import { HeaderWithBack, ProgressBar } from '../components/HeaderWithBack';
 import CustomSlider from '../components/CustomSlider';
+import { useApp } from '../context/AppContext';
 import { COLORS } from '../theme/colors';
 
 export default function SetupStep3Screen({ onFinish, onBack }) {
-  const [minLevel, setMinLevel] = useState(35);
-  const [criticalLevel, setCriticalLevel] = useState(15);
+  const { tank, updateTank } = useApp();
+  const [minLevel, setMinLevel] = useState(tank.minLevel);
+  const [criticalLevel, setCriticalLevel] = useState(tank.criticalLevel);
+
+  const handleFinish = () => {
+    // El nivel crítico no puede quedar por encima del mínimo.
+    updateTank({ minLevel, criticalLevel: Math.min(criticalLevel, minLevel) });
+    onFinish();
+  };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <HeaderWithBack title="Configurar mi tinaco" onBack={onBack} />
+    <View style={styles.safeArea}>
+      <HeaderWithBack title="Preferencias de Uso" onBack={onBack} />
       <ProgressBar progress={1.0} />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -41,7 +48,7 @@ export default function SetupStep3Screen({ onFinish, onBack }) {
         </View>
 
         {/* Green Finish Button */}
-        <TouchableOpacity style={styles.greenButton} onPress={onFinish}>
+        <TouchableOpacity style={styles.greenButton} onPress={handleFinish}>
           <Text style={styles.greenButtonText}>Finalizar Configuración</Text>
         </TouchableOpacity>
 
@@ -50,7 +57,7 @@ export default function SetupStep3Screen({ onFinish, onBack }) {
           <Text style={styles.outlineButtonText}>Anterior</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

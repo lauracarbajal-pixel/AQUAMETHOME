@@ -2,9 +2,9 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Circle, Ellipse } from 'react-native-svg';
 
-export default function WaterMascot({ size = 150 }) {
+export default function WaterMascot({ size = 150, style }) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <Svg width={size} height={size * 1.1} viewBox="0 0 160 180" fill="none">
         {/* Shadow base */}
         <Ellipse cx="80" cy="170" rx="45" ry="7" fill="#D0E3F7" />

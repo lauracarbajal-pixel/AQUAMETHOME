@@ -1,0 +1,44 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+jobs:
+  claude-review:
+    # No revisar PRs en borrador
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+
+            Revisa este pull request de una app React Native / Expo (AQUAMETHOME).
+            Enfócate en:
+            - Errores de lógica y bugs
+            - Problemas de seguridad (llaves o secretos expuestos, datos sin validar)
+            - Rendimiento (renders innecesarios, fugas de memoria, listeners sin limpiar)
+            - Buenas prácticas de React / React Native y legibilidad del código
+
+            Usa `gh pr diff` para ver los cambios. Deja comentarios en línea
+            para problemas concretos y un comentario general con el resumen
+            usando `gh pr comment`. Escribe los comentarios en español.
+            Sé breve: solo reporta lo que realmente valga la pena corregir.
+
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

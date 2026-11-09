@@ -24,7 +24,7 @@ export default function FloatingInput({
       <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
         {required && (
           <View style={styles.requiredTag}>
-            <Text style={styles.requiredTagText}>Requiried</Text>
+            <Text style={styles.requiredTagText}>Requerido</Text>
           </View>
         )}
 
