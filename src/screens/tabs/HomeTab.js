@@ -8,12 +8,18 @@ import { Card } from '../../components/ui';
 import { useApp } from '../../context/AppContext';
 import { WEEKLY_CONSUMPTION } from '../../data/mockData';
 import { getTankStatus } from '../../utils/status';
+import { timeLabel12 } from '../../utils/format';
 import { COLORS } from '../../theme/colors';
 
 export default function HomeTab({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { tank } = useApp();
-  const status = getTankStatus(tank);
+  const { tank, connection } = useApp();
+  const hasReading = tank.lastUpdate != null;
+  const status = hasReading
+    ? getTankStatus({ level: tank.level, minLevel: tank.minLevel, criticalLevel: tank.criticalLevel })
+    : connection === 'offline'
+      ? { key: 'offline', label: 'Sin conexión', color: COLORS.danger, bg: COLORS.dangerBg, border: COLORS.dangerBorder, icon: 'alert' }
+      : { key: 'connecting', label: 'Conectando…', color: COLORS.textSecondary, bg: COLORS.white, border: COLORS.borderLight, icon: 'alert' };
 
   const avgDaily = Math.round(WEEKLY_CONSUMPTION.reduce((s, d) => s + d.current, 0) / WEEKLY_CONSUMPTION.length);
 
@@ -41,7 +47,12 @@ export default function HomeTab({ navigation }) {
         <Text style={[styles.statusText, { color: status.color }]}>Estado: {status.label}</Text>
       </View>
 
-      <Text style={styles.lastUpdate}>Última actualización: {tank.lastUpdate}</Text>
+      {hasReading ? (
+        <Text style={styles.lastUpdate}>
+          Última actualización: {timeLabel12(tank.lastUpdate)}
+          {connection === 'offline' ? ' (sin conexión)' : ''}
+        </Text>
+      ) : null}
 
       <TouchableOpacity
         activeOpacity={0.85}

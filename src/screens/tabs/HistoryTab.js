@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { HeaderWithBack } from '../../components/HeaderWithBack';
 import LineChart from '../../components/charts/LineChart';
 import Icon from '../../components/Icon';
 import { Card, StatusDot } from '../../components/ui';
 import { useApp } from '../../context/AppContext';
-import { LEVEL_HISTORY, EVENT_LOG } from '../../data/mockData';
+import { buildLevelPeriods, dateLabel, timeLabel12 } from '../../utils/format';
 import { COLORS } from '../../theme/colors';
 
 const EVENT_COLORS = {
@@ -16,10 +16,11 @@ const EVENT_COLORS = {
 };
 
 export default function HistoryTab() {
-  const { tank } = useApp();
+  const { tank, samples, events } = useApp();
+  const periods = useMemo(() => buildLevelPeriods(samples), [samples]);
   const [periodIndex, setPeriodIndex] = useState(0);
-  const period = LEVEL_HISTORY[periodIndex];
-  const canGoOlder = periodIndex < LEVEL_HISTORY.length - 1;
+  const period = periods[Math.min(periodIndex, periods.length - 1)];
+  const canGoOlder = periodIndex < periods.length - 1;
   const canGoNewer = periodIndex > 0;
 
   return (
@@ -49,29 +50,39 @@ export default function HistoryTab() {
             </TouchableOpacity>
           </View>
 
-          <LineChart data={period.points} threshold={tank.minLevel} />
+          {period.points.length > 0 ? (
+            <>
+              <LineChart data={period.points} threshold={tank.minLevel} />
 
-          <View style={styles.legendRow}>
-            <View style={styles.legendDash} />
-            <Text style={styles.legendText}>Nivel mínimo ({tank.minLevel}%)</Text>
-          </View>
+              <View style={styles.legendRow}>
+                <View style={styles.legendDash} />
+                <Text style={styles.legendText}>Nivel mínimo ({tank.minLevel}%)</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.emptyText}>Aún no hay lecturas del sensor en este periodo.</Text>
+          )}
         </Card>
 
         <Card>
           <Text style={styles.cardTitle}>Registro de eventos</Text>
-          {EVENT_LOG.map((event, i) => (
-            <View key={event.id} style={[styles.eventRow, i > 0 && styles.eventDivider]}>
-              <View style={styles.eventDot}>
-                <StatusDot color={EVENT_COLORS[event.type]} size={10} />
+          {events.length === 0 ? (
+            <Text style={styles.emptyText}>Todavía no hay eventos registrados.</Text>
+          ) : (
+            events.map((event, i) => (
+              <View key={event.id} style={[styles.eventRow, i > 0 && styles.eventDivider]}>
+                <View style={styles.eventDot}>
+                  <StatusDot color={EVENT_COLORS[event.type]} size={10} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.eventDate}>
+                    {dateLabel(event.ts)} · {timeLabel12(event.ts)}
+                  </Text>
+                  <Text style={styles.eventText}>{event.text}</Text>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.eventDate}>
-                  {event.date} · {event.time}
-                </Text>
-                <Text style={styles.eventText}>{event.text}</Text>
-              </View>
-            </View>
-          ))}
+            ))
+          )}
         </Card>
       </ScrollView>
     </View>
@@ -103,6 +114,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: COLORS.textStrong,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    paddingVertical: 24,
   },
   legendRow: {
     flexDirection: 'row',
