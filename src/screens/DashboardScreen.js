@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,116 @@ import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import AQUAMETLogo from '../components/AQUAMETLogo';
 import TinacoGraphic from '../components/TinacoGraphic';
 import { COLORS } from '../theme/colors';
+import { obtenerNivel } from '../services/sensorApi';
+import {
+  cargarHistorial,
+  guardarHistorial,
+  cargarAlertas,
+  guardarAlertas,
+} from '../services/storage';
+
+const UMBRALES = { minimo: 30, critico: 15 };
+const INTERVALO_MS = 5000;
+const MAX_HISTORIAL = 100;
+
+const ESTADOS = {
+  normal: { texto: 'Normal', fondo: '#E8F8F0', borde: '#A3E6BE', punto: '#2ECC71', color: '#1E8E4E' },
+  bajo: { texto: 'Bajo', fondo: '#FFF7E0', borde: '#F5D77A', punto: '#F5A623', color: '#9A6700' },
+  critico: { texto: 'Crítico', fondo: '#FDECEC', borde: '#F5A3A3', punto: '#E5484D', color: '#B42318' },
+};
+
+const formatoHora = (fecha) =>
+  fecha.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
 export default function DashboardScreen({ onOpenSettings }) {
   const [activeTab, setActiveTab] = useState('INICIO');
+  const [lectura, setLectura] = useState(null);
+  const [sinConexion, setSinConexion] = useState(false);
+  const [historial, setHistorial] = useState([]); // lecturas del sensor, más reciente primero
+  const [alertas, setAlertas] = useState([]); // alertas generadas, más reciente primero
+  const [cargado, setCargado] = useState(false); // ya se leyó lo guardado en el teléfono
+  const estadoPrevio = useRef(null);
+  const conexionPrevia = useRef(true);
+
+  // Recupera historial y alertas guardados; las lecturas nuevas (más recientes) van primero
+  useEffect(() => {
+    let activo = true;
+    Promise.all([cargarHistorial(), cargarAlertas()]).then(([h, a]) => {
+      if (!activo) return;
+      setHistorial((prev) => [...prev, ...h].slice(0, MAX_HISTORIAL));
+      setAlertas((prev) => [...prev, ...a].slice(0, 50));
+      setCargado(true);
+    });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  // Guarda cada cambio, pero solo después de cargar para no pisar lo almacenado
+  useEffect(() => {
+    if (cargado) guardarHistorial(historial);
+  }, [historial, cargado]);
+
+  useEffect(() => {
+    if (cargado) guardarAlertas(alertas);
+  }, [alertas, cargado]);
+
+  useEffect(() => {
+    let activo = true;
+
+    const agregarAlerta = (alerta) =>
+      setAlertas((prev) => [{ ...alerta, id: `${Date.now()}-${prev.length}`, hora: new Date() }, ...prev].slice(0, 50));
+
+    const leer = async () => {
+      try {
+        const nueva = await obtenerNivel(UMBRALES);
+        if (!activo) return;
+        setLectura(nueva);
+        setSinConexion(false);
+        setHistorial((prev) => [nueva, ...prev].slice(0, MAX_HISTORIAL));
+
+        if (!conexionPrevia.current) {
+          agregarAlerta({ tipo: 'info', mensaje: 'Se restableció la conexión con el sensor.' });
+        }
+        conexionPrevia.current = true;
+
+        if (nueva.estado !== estadoPrevio.current && nueva.estado !== 'normal') {
+          agregarAlerta({
+            tipo: nueva.estado,
+            mensaje:
+              nueva.estado === 'critico'
+                ? `Nivel crítico: ${nueva.porcentaje}% (${nueva.litros} L).`
+                : `Nivel bajo: ${nueva.porcentaje}% (${nueva.litros} L).`,
+          });
+        }
+        estadoPrevio.current = nueva.estado;
+      } catch (e) {
+        if (!activo) return;
+        setSinConexion(true);
+        if (conexionPrevia.current) {
+          agregarAlerta({ tipo: 'critico', mensaje: 'Sin conexión con el sensor.' });
+        }
+        conexionPrevia.current = false;
+      }
+    };
+
+    leer();
+    const id = setInterval(leer, INTERVALO_MS);
+    return () => {
+      activo = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  // Litros consumidos durante la sesión: suma de las bajadas entre lecturas consecutivas
+  const litrosConsumidos = historial.reduce((total, actual, i) => {
+    const anterior = historial[i + 1]; // más antigua
+    if (!anterior) return total;
+    const baja = anterior.litros - actual.litros;
+    return baja > 0 ? total + baja : total;
+  }, 0);
+
+  const estadoUI = lectura ? ESTADOS[lectura.estado] : null;
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -22,30 +129,62 @@ export default function DashboardScreen({ onOpenSettings }) {
         return (
           <ScrollView contentContainerStyle={styles.mainScrollContent}>
             {/* Tinaco Visual Graphic */}
-            <TinacoGraphic levelPercentage={72} capacityLitros={1100} />
+            <TinacoGraphic
+              levelPercentage={lectura ? lectura.porcentaje : 0}
+              capacityLitros={lectura && lectura.porcentaje > 0 ? lectura.litros / (lectura.porcentaje / 100) : 0}
+            />
 
             {/* Status Badge */}
-            <View style={styles.statusPill}>
-              <View style={styles.statusCheckCircle}>
-                <Svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <Path
-                    d="M20 6L9 17L4 12"
-                    stroke="#FFFFFF"
-                    strokeWidth="3.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </Svg>
+            {sinConexion && !lectura ? (
+              <View style={[styles.statusPill, { backgroundColor: ESTADOS.critico.fondo, borderColor: ESTADOS.critico.borde }]}>
+                <Text style={[styles.statusPillText, { color: ESTADOS.critico.color }]}>Sin conexión con el sensor</Text>
               </View>
-              <Text style={styles.statusPillText}>Estado: Normal</Text>
-            </View>
+            ) : estadoUI ? (
+              <View style={[styles.statusPill, { backgroundColor: estadoUI.fondo, borderColor: estadoUI.borde }]}>
+                <View style={[styles.statusCheckCircle, { backgroundColor: estadoUI.punto }]}>
+                  <Svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M20 6L9 17L4 12"
+                      stroke="#FFFFFF"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                </View>
+                <Text style={[styles.statusPillText, { color: estadoUI.color }]}>Estado: {estadoUI.texto}</Text>
+              </View>
+            ) : (
+              <Text style={styles.lastUpdateText}>Conectando con el sensor…</Text>
+            )}
 
             {/* Last Updated Timestamp */}
-            <Text style={styles.lastUpdateText}>Última actualización: 10:07 AM</Text>
+            {lectura && (
+              <Text style={styles.lastUpdateText}>
+                Última actualización: {formatoHora(lectura.actualizado)}
+                {sinConexion ? ' (sin conexión)' : ''}
+              </Text>
+            )}
           </ScrollView>
         );
 
       case 'ALERTAS':
+        if (alertas.length > 0) {
+          return (
+            <ScrollView contentContainerStyle={styles.listContent}>
+              <Text style={styles.listTitle}>Alertas</Text>
+              {alertas.map((a) => {
+                const ui = ESTADOS[a.tipo] || ESTADOS.normal;
+                return (
+                  <View key={a.id} style={[styles.listItem, { borderLeftColor: ui.punto }]}>
+                    <Text style={styles.listItemMain}>{a.mensaje}</Text>
+                    <Text style={styles.listItemSub}>{formatoHora(a.hora)}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          );
+        }
         return (
           <View style={styles.emptyTabContainer}>
             <Svg width="48" height="48" viewBox="0 0 24 24" fill="none">
@@ -65,11 +204,33 @@ export default function DashboardScreen({ onOpenSettings }) {
               />
             </Svg>
             <Text style={styles.tabTitle}>Sin Alertas Activas</Text>
-            <Text style={styles.tabSubtitle}>El nivel de tu tinaco está estable al 72%.</Text>
+            <Text style={styles.tabSubtitle}>
+              {lectura
+                ? `El nivel de tu tinaco está al ${lectura.porcentaje}%.`
+                : 'Esperando datos del sensor…'}
+            </Text>
           </View>
         );
 
       case 'HISTORIAL':
+        if (historial.length > 0) {
+          return (
+            <ScrollView contentContainerStyle={styles.listContent}>
+              <Text style={styles.listTitle}>Historial de Consumo</Text>
+              <Text style={styles.tabSubtitle}>
+                Consumo estimado en las últimas {historial.length} lecturas:{Math.round(litrosConsumidos)} L
+              </Text>
+              {historial.map((h, i) => (
+                <View key={`${h.actualizado.getTime()}-${i}`} style={[styles.listItem, { borderLeftColor: ESTADOS[h.estado].punto }]}>
+                  <Text style={styles.listItemMain}>
+                    {h.porcentaje}% · {h.litros} L
+                  </Text>
+                  <Text style={styles.listItemSub}>{formatoHora(h.actualizado)}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          );
+        }
         return (
           <View style={styles.emptyTabContainer}>
             <Svg width="48" height="48" viewBox="0 0 24 24" fill="none">
@@ -77,7 +238,7 @@ export default function DashboardScreen({ onOpenSettings }) {
               <Path d="M12 7V12L15 15" stroke="#0F6CBD" strokeWidth="2" strokeLinecap="round" />
             </Svg>
             <Text style={styles.tabTitle}>Historial de Consumo</Text>
-            <Text style={styles.tabSubtitle}>Consumo promedio diario: 210 Litros/día.</Text>
+            <Text style={styles.tabSubtitle}>Aún no hay lecturas del sensor.</Text>
           </View>
         );
 
@@ -283,6 +444,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+  },
+  listContent: {
+    padding: 16,
+  },
+  listTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  listItem: {
+    backgroundColor: '#FFFFFF',
+    borderLeftWidth: 4,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+  },
+  listItemMain: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  listItemSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
   },
   tabTitle: {
     fontSize: 20,
