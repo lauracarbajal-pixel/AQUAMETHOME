@@ -1,23 +1,29 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Rect, LinearGradient, Stop, Defs, Mask } from 'react-native-svg';
+import { useResponsive } from '../utils/responsive';
 
 export default function TinacoGraphic({ levelPercentage = 72, capacityLitros = 1100 }) {
+  const { width, scale, isCompact } = useResponsive();
   const currentLitros = Math.round((levelPercentage / 100) * capacityLitros);
+
+  // El tinaco ocupa ~40% del ancho disponible (entre 120 y 200 px) y conserva su proporción 180x250.
+  const graphicWidth = Math.round(Math.min(Math.max(width * 0.4, 120), 200));
+  const graphicHeight = Math.round((graphicWidth * 250) / 180);
 
   // Height of water container in SVG coordinates
   const tankTopY = 40;
   const tankBottomY = 220;
   const tankHeight = tankBottomY - tankTopY; // 180 units
-  
+
   // Calculate water y position from bottom
   const waterHeight = (levelPercentage / 100) * tankHeight;
   const waterTopY = tankBottomY - waterHeight;
 
   return (
     <View style={styles.container}>
-      <View style={styles.graphicWrapper}>
-        <Svg width={180} height={250} viewBox="0 0 180 250">
+      <View style={[styles.graphicWrapper, { marginRight: isCompact ? 8 : 15 }]}>
+        <Svg width={graphicWidth} height={graphicHeight} viewBox="0 0 180 250">
           <Defs>
             {/* Water gradient */}
             <LinearGradient id="waterGrad" x1="0" y1="0" x2="1" y2="0">
@@ -29,14 +35,14 @@ export default function TinacoGraphic({ levelPercentage = 72, capacityLitros = 1
             {/* Tank shell outline path for clip mask */}
             <Mask id="tankMask">
               <Path
-                d="M 40 40 
-                   L 140 40 
-                   L 165 80 
-                   L 165 200 
-                   L 140 220 
-                   L 40 220 
-                   L 15 200 
-                   L 15 80 
+                d="M 40 40
+                   L 140 40
+                   L 165 80
+                   L 165 200
+                   L 140 220
+                   L 40 220
+                   L 15 200
+                   L 15 80
                    Z"
                 fill="#FFFFFF"
               />
@@ -75,14 +81,14 @@ export default function TinacoGraphic({ levelPercentage = 72, capacityLitros = 1
 
           {/* Tank Outer Border Shape */}
           <Path
-            d="M 40 40 
-               L 140 40 
-               L 165 80 
-               L 165 200 
-               L 140 220 
-               L 40 220 
-               L 15 200 
-               L 15 80 
+            d="M 40 40
+               L 140 40
+               L 165 80
+               L 165 200
+               L 140 220
+               L 40 220
+               L 15 200
+               L 15 80
                Z"
             fill="none"
             stroke="#1E3A8A"
@@ -100,10 +106,14 @@ export default function TinacoGraphic({ levelPercentage = 72, capacityLitros = 1
 
       {/* Level Info Side Section */}
       <View style={styles.infoSection}>
-        <Text style={styles.labelText}>Nivel Actual:</Text>
-        <Text style={styles.percentageText}>{levelPercentage}%</Text>
-        <Text style={styles.subLabelText}>Litros:</Text>
-        <Text style={styles.litrosText}>{currentLitros}L / {capacityLitros}L</Text>
+        <Text style={[styles.labelText, { fontSize: scale(16) }]}>Nivel Actual:</Text>
+        <Text style={[styles.percentageText, { fontSize: scale(42) }]} adjustsFontSizeToFit numberOfLines={1}>
+          {levelPercentage}%
+        </Text>
+        <Text style={[styles.subLabelText, { fontSize: scale(15) }]}>Litros:</Text>
+        <Text style={[styles.litrosText, { fontSize: scale(17) }]}>
+          {currentLitros}L / {capacityLitros}L
+        </Text>
       </View>
     </View>
   );
@@ -111,38 +121,35 @@ export default function TinacoGraphic({ levelPercentage = 72, capacityLitros = 1
 
 const styles = StyleSheet.create({
   container: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 15,
-    paddingHorizontal: 10,
   },
   graphicWrapper: {
-    marginRight: 15,
+    flexShrink: 0,
   },
   infoSection: {
+    flexShrink: 1, // si no cabe, el texto se acomoda en lugar de salirse de la pantalla
     justifyContent: 'center',
     alignItems: 'flex-start',
   },
   labelText: {
-    fontSize: 16,
     color: '#334155',
     fontWeight: '600',
   },
   percentageText: {
-    fontSize: 42,
     fontWeight: '900',
     color: '#0F172A',
     marginVertical: 2,
   },
   subLabelText: {
-    fontSize: 15,
     color: '#475569',
     marginTop: 6,
     fontWeight: '500',
   },
   litrosText: {
-    fontSize: 17,
     fontWeight: '700',
     color: '#0F172A',
     marginTop: 2,

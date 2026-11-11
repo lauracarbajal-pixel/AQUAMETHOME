@@ -14,6 +14,7 @@ export default function FloatingInput({
 }) {
   const [isSecure, setIsSecure] = useState(secureTextEntry);
   const [isFocused, setIsFocused] = useState(false);
+  const isEmail = keyboardType === 'email-address';
 
   return (
     <View style={styles.container}>
@@ -21,49 +22,61 @@ export default function FloatingInput({
         {label} {required && <Text style={styles.requiredStar}>*</Text>}
       </Text>
 
-      <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
+      <View style={styles.fieldWrapper}>
+        {/* overflow: 'hidden' evita que un texto largo (p. ej. un correo) se salga del recuadro */}
+        <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
+          <TextInput
+            style={styles.textInput}
+            value={value}
+            onChangeText={onChangeText}
+            secureTextEntry={isSecure}
+            placeholder={placeholder}
+            placeholderTextColor="#94A3B8"
+            keyboardType={keyboardType}
+            autoCapitalize={isEmail || secureTextEntry ? 'none' : 'sentences'}
+            autoCorrect={!(isEmail || secureTextEntry)}
+            autoComplete={isEmail ? 'email' : undefined}
+            multiline={false}
+            numberOfLines={1}
+            accessibilityLabel={label}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+          />
+
+          {secureTextEntry && (
+            <TouchableOpacity
+              style={styles.eyeButton}
+              onPress={() => setIsSecure(!isSecure)}
+              accessibilityRole="button"
+              accessibilityLabel={isSecure ? 'Mostrar contraseña' : 'Ocultar contraseña'}
+            >
+              <Svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"
+                  stroke="#64748B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <Circle
+                  cx="12"
+                  cy="12"
+                  r="3"
+                  stroke="#64748B"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* La etiqueta va fuera del recuadro para que el recorte no la oculte */}
         {required && (
-          <View style={styles.requiredTag}>
+          <View style={styles.requiredTag} pointerEvents="none">
             <Text style={styles.requiredTagText}>Requerido</Text>
           </View>
-        )}
-
-        <TextInput
-          style={styles.textInput}
-          value={value}
-          onChangeText={onChangeText}
-          secureTextEntry={isSecure}
-          placeholder={placeholder}
-          placeholderTextColor="#94A3B8"
-          keyboardType={keyboardType}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-        />
-
-        {secureTextEntry && (
-          <TouchableOpacity
-            style={styles.eyeButton}
-            onPress={() => setIsSecure(!isSecure)}
-          >
-            <Svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <Path
-                d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z"
-                stroke="#64748B"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <Circle
-                cx="12"
-                cy="12"
-                r="3"
-                stroke="#64748B"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </Svg>
-          </TouchableOpacity>
         )}
       </View>
     </View>
@@ -84,6 +97,10 @@ const styles = StyleSheet.create({
   requiredStar: {
     color: '#EF4444',
   },
+  fieldWrapper: {
+    position: 'relative',
+    width: '100%',
+  },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -92,8 +109,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 14,
-    height: 52,
-    position: 'relative',
+    minHeight: 52,
+    width: '100%',
+    overflow: 'hidden',
   },
   inputBoxFocused: {
     borderColor: '#0284C7',
@@ -114,11 +132,13 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
+    minWidth: 0, // permite que el campo se encoja en lugar de empujar el recuadro
     fontSize: 16,
     color: '#0F172A',
     paddingVertical: 8,
   },
   eyeButton: {
     padding: 6,
+    marginLeft: 4,
   },
 });

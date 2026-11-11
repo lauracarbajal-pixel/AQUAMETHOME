@@ -106,6 +106,14 @@ export default function Icon({ name, size = 24, color = '#64748B', strokeWidth =
         />
       );
       break;
+    case 'logout':
+      content = (
+        <>
+          <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" {...p} />
+          <Path d="M16 17l5-5-5-5M21 12H9" {...p} />
+        </>
+      );
+      break;
     case 'trophy':
       content = (
         <>
