@@ -10,23 +10,25 @@ import Svg, { Path } from 'react-native-svg';
 import { HeaderWithBack, ProgressBar } from '../components/HeaderWithBack';
 import FloatingInput from '../components/FloatingInput';
 import { useApp } from '../context/AppContext';
+import { TANK_LOCATIONS } from '../data/mockData';
 import { COLORS } from '../theme/colors';
 
 export default function SetupStep1Screen({ onNext, onBack }) {
-  const { tank, updateTank } = useApp();
-  const [capacity, setCapacity] = useState(String(tank.capacity));
-  const [location, setLocation] = useState(tank.location);
+  // Los datos se guardan en el borrador del alta; el sensor se registra al terminar el paso 3.
+  const { setupDraft, updateSetupDraft } = useApp();
+  const [capacity, setCapacity] = useState(String(setupDraft.capacity));
+  const [location, setLocation] = useState(setupDraft.location);
   const capacityNumber = parseInt(capacity, 10);
   const capacityValid = Number.isFinite(capacityNumber) && capacityNumber > 0;
 
   const handleNext = () => {
     if (!capacityValid) return;
-    updateTank({ capacity: capacityNumber, location });
+    updateSetupDraft({ capacity: capacityNumber, location });
     onNext();
   };
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
-  const locationsList = ['Azotea', 'Jardín', 'Patio Trasero', 'CISTERNA'];
+  const locationsList = TANK_LOCATIONS;
 
   return (
     <View style={styles.safeArea}>

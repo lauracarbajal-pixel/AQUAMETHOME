@@ -7,7 +7,7 @@ import {
   ALERT_RESOLVE_POINTS,
 } from '../data/mockData';
 import { obtenerNivel } from '../services/sensorApi';
-import { KEYS, loadList, saveList } from '../services/storage';
+import { KEYS, loadList, loadObject, saveList, saveObject } from '../services/storage';
 import { getTankStatus } from '../utils/status';
 import { dayLabel, timeLabel24 } from '../utils/format';
 
@@ -15,9 +15,14 @@ const AppContext = createContext(null);
 
 const POLL_MS = 5000; // cada cuánto se consulta el sensor
 const SAMPLE_MS = 10 * 60 * 1000; // cada cuánto se guarda un punto para el historial
-const MAX_SAMPLES = 1000; // ~7 días
-const MAX_EVENTS = 50;
+const MAX_SAMPLES = 90 * 24 * 6; // ~90 días (un punto cada 10 min) para poder consultar periodos anteriores
+const MAX_EVENTS = 200;
 const MAX_ALERTS = 50;
+
+// Campos de la configuración del sensor que se guardan en el teléfono
+const SENSOR_FIELDS = ['capacity', 'location', 'minLevel', 'criticalLevel', 'sensorModel'];
+const pickSensorFields = (obj) =>
+  SENSOR_FIELDS.reduce((acc, k) => (obj[k] !== undefined ? { ...acc, [k]: obj[k] } : acc), {});
 
 const newId = (prefix) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
@@ -29,6 +34,10 @@ export function AppProvider({ children }) {
   const [events, setEvents] = useState([]); // [{ id, ts, text, type }] más reciente primero
   const [alertRecords, setAlertRecords] = useState([]); // [{ id, ts, level, percent, status }]
   const [loaded, setLoaded] = useState(false);
+  // Sensor registrado: undefined = cargando, null = no hay sensor, objeto = configuración guardada
+  const [sensor, setSensor] = useState(undefined);
+  // Borrador del asistente de alta (no se aplica hasta terminar el paso 3)
+  const [setupDraft, setSetupDraft] = useState(() => pickSensorFields(INITIAL_TANK));
   const [points, setPoints] = useState(INITIAL_POINTS);
   const [challenges, setChallenges] = useState(INITIAL_CHALLENGES);
   const [badges] = useState(BADGES);
@@ -38,17 +47,26 @@ export function AppProvider({ children }) {
   const alertsRef = useRef(alertRecords);
   const connectionRef = useRef('connecting');
   const lastSampleRef = useRef(0);
+  const sensorRef = useRef(sensor);
   tankRef.current = tank;
   alertsRef.current = alertRecords;
+  sensorRef.current = sensor;
 
   // 1) Recupera lo guardado en el teléfono
   useEffect(() => {
     let active = true;
-    Promise.all([loadList(KEYS.samples), loadList(KEYS.events), loadList(KEYS.alerts)]).then(([s, e, a]) => {
+    Promise.all([
+      loadList(KEYS.samples),
+      loadList(KEYS.events),
+      loadList(KEYS.alerts),
+      loadObject(KEYS.sensor),
+    ]).then(([s, e, a, savedSensor]) => {
       if (!active) return;
       setSamples(s);
       setEvents(e);
       setAlertRecords(a);
+      setSensor(savedSensor);
+      if (savedSensor) setTank((prev) => ({ ...prev, ...pickSensorFields(savedSensor) }));
       lastSampleRef.current = s.length ? s[0].ts : 0;
       setLoaded(true);
     });
@@ -69,9 +87,18 @@ export function AppProvider({ children }) {
   }, [alertRecords, loaded]);
 
   // 3) Consulta el sensor periódicamente
+  // (solo si hay un sensor registrado)
+  const hasSensor = Boolean(sensor);
   useEffect(() => {
     if (!loaded) return undefined;
+    if (!hasSensor) {
+      connectionRef.current = 'none';
+      setConnection('none');
+      return undefined;
+    }
     let active = true;
+    connectionRef.current = 'connecting';
+    setConnection('connecting');
 
     const addEvent = (ts, text, type) =>
       setEvents((list) => [{ id: newId('ev'), ts, text, type }, ...list].slice(0, MAX_EVENTS));
@@ -134,11 +161,35 @@ export function AppProvider({ children }) {
       active = false;
       clearInterval(id);
     };
-  }, [loaded]);
+  }, [loaded, hasSensor]);
 
   const updateTank = useCallback((patch) => {
     setTank((prev) => ({ ...prev, ...patch }));
   }, []);
+
+  // Guarda la configuración del sensor (alta o edición) en memoria y en el teléfono.
+  // `isNew` marca un alta: se registra la fecha y se reinicia la lectura del nivel.
+  const saveSensor = useCallback((config, { isNew = false } = {}) => {
+    const fields = pickSensorFields(config);
+    const prev = sensorRef.current;
+    const next = {
+      ...(isNew ? {} : prev || {}),
+      ...fields,
+      registeredAt: !isNew && prev?.registeredAt ? prev.registeredAt : Date.now(),
+    };
+    sensorRef.current = next;
+    setSensor(next);
+    saveObject(KEYS.sensor, next);
+    setTank((prev) => ({ ...prev, ...fields, ...(isNew ? { level: 0, lastUpdate: null } : null) }));
+  }, []);
+
+  // Asistente de alta: empieza con valores por defecto y solo se aplica al terminar.
+  const startSetupDraft = useCallback(() => setSetupDraft(pickSensorFields(INITIAL_TANK)), []);
+  const updateSetupDraft = useCallback((patch) => setSetupDraft((prev) => ({ ...prev, ...patch })), []);
+  const finishSetupDraft = useCallback(
+    (patch = {}) => saveSensor({ ...setupDraft, ...patch }, { isNew: true }),
+    [saveSensor, setupDraft]
+  );
 
   // Alertas con el formato que usan las pantallas
   const alerts = useMemo(
@@ -208,8 +259,19 @@ export function AppProvider({ children }) {
       claimChallenge,
       badges,
       latestBadge,
+      sensor,
+      sensorReady: sensor !== undefined,
+      saveSensor,
+      setupDraft,
+      startSetupDraft,
+      updateSetupDraft,
+      finishSetupDraft,
     }),
-    [tank, updateTank, connection, samples, events, alerts, markAlertReviewing, resolveAlert, points, challenges, claimChallenge, badges, latestBadge]
+    [
+      tank, updateTank, connection, samples, events, alerts, markAlertReviewing, resolveAlert, points, challenges,
+      claimChallenge, badges, latestBadge, sensor, saveSensor, setupDraft, startSetupDraft, updateSetupDraft,
+      finishSetupDraft,
+    ]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

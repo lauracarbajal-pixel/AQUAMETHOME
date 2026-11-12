@@ -106,6 +106,9 @@ export default function Icon({ name, size = 24, color = '#64748B', strokeWidth =
         />
       );
       break;
+    case 'plus':
+      content = <Path d="M12 5v14M5 12h14" {...p} />;
+      break;
     case 'logout':
       content = (
         <>

@@ -39,35 +39,79 @@ export function dateLabel(ts) {
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
-const PERIOD_LABELS = ['Últimos 7 días', 'Semana anterior', 'Hace 2 semanas', 'Hace 3 semanas'];
+// Suma días respetando el calendario (no depende de que todos los días midan 24 h)
+const addDays = (ts, n) => {
+  const d = new Date(ts);
+  d.setDate(d.getDate() + n);
+  return d.getTime();
+};
 
-// samples: [{ ts, value }] (cualquier orden). Devuelve periodos de 7 días, del más reciente al más antiguo,
-// con el nivel promedio de cada día que tenga lecturas: [{ label, points: [{ day, month, value }] }]
-export function buildLevelPeriods(samples, now = Date.now()) {
-  const today = startOfDay(now);
-  const oldest = samples.reduce((min, s) => Math.min(min, s.ts), now);
-  const daysSpan = Math.round((today - startOfDay(oldest)) / DAY_MS) + 1;
-  const count = Math.min(Math.max(Math.ceil(daysSpan / 7), 1), PERIOD_LABELS.length);
+const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-  const byDay = new Map(); // inicio del día -> { sum, n }
+// Periodos que se pueden consultar en el Historial (el "mes" son bloques de 30 días)
+export const HISTORY_RANGES = [
+  { key: 'day', label: 'Día', days: 1 },
+  { key: 'week', label: 'Semana', days: 7 },
+  { key: 'month', label: 'Mes', days: 30 },
+];
+
+// samples: [{ ts, value }] (cualquier orden).
+// rangeKey: 'day' | 'week' | 'month'; offset: 0 = periodo actual, 1 = el anterior, etc.
+// Día → promedio por hora; Semana/Mes → promedio por día (solo horas/días con lecturas).
+export function buildLevelSeries(samples, rangeKey = 'week', offset = 0, now = Date.now()) {
+  const range = HISTORY_RANGES.find((r) => r.key === rangeKey) || HISTORY_RANGES[1];
+  const end = addDays(startOfDay(now), 1 - offset * range.days); // exclusivo
+  const start = addDays(end, -range.days);
+  const lastDay = addDays(end, -1);
+  const byHour = range.key === 'day';
+
+  const buckets = new Map(); // inicio de la hora/día -> { sum, n }
+  let min = Infinity;
+  let max = -Infinity;
+  let sum = 0;
+  let count = 0;
+  let oldest = Infinity;
+
   samples.forEach((s) => {
-    const key = startOfDay(s.ts);
-    const acc = byDay.get(key) || { sum: 0, n: 0 };
+    if (s.ts < oldest) oldest = s.ts;
+    if (s.ts < start || s.ts >= end) return;
+    const d = new Date(s.ts);
+    if (byHour) d.setMinutes(0, 0, 0);
+    else d.setHours(0, 0, 0, 0);
+    const key = d.getTime();
+    const acc = buckets.get(key) || { sum: 0, n: 0 };
     acc.sum += s.value;
     acc.n += 1;
-    byDay.set(key, acc);
+    buckets.set(key, acc);
+    min = Math.min(min, s.value);
+    max = Math.max(max, s.value);
+    sum += s.value;
+    count += 1;
   });
 
-  return Array.from({ length: count }, (_, p) => {
-    const points = [];
-    for (let i = 6; i >= 0; i -= 1) {
-      const dayStart = today - (p * 7 + i) * DAY_MS;
-      const acc = byDay.get(dayStart);
-      if (acc) {
-        const d = new Date(dayStart);
-        points.push({ day: String(d.getDate()), month: MONTHS[d.getMonth()], value: Math.round(acc.sum / acc.n) });
-      }
-    }
-    return { label: PERIOD_LABELS[p], points };
-  });
+  const points = [...buckets.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([key, acc]) => {
+      const d = new Date(key);
+      return byHour
+        ? { day: `${d.getHours()}h`, month: '', value: Math.round(acc.sum / acc.n) }
+        : { day: String(d.getDate()), month: MONTHS[d.getMonth()], value: Math.round(acc.sum / acc.n) };
+    });
+
+  let label;
+  if (byHour) label = offset <= 1 ? dayLabel(start, now) : WEEKDAYS[new Date(start).getDay()];
+  else if (offset === 0) label = `Últimos ${range.days} días`;
+  else if (range.key === 'week') label = offset === 1 ? 'Semana anterior' : `Hace ${offset} semanas`;
+  else label = offset === 1 ? 'Mes anterior' : `Hace ${offset} meses`;
+
+  return {
+    label,
+    rangeText: byHour ? dateLabel(start) : `${dateLabel(start)} – ${dateLabel(lastDay)}`,
+    start,
+    end,
+    points,
+    stats: count ? { min, max, avg: Math.round(sum / count) } : null,
+    canGoOlder: oldest < start, // hay lecturas más antiguas que este periodo
+    canGoNewer: offset > 0,
+  };
 }

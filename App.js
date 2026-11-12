@@ -3,7 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { BackHandler, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { AppProvider } from './src/context/AppContext';
+import { AppProvider, useApp } from './src/context/AppContext';
 import LoginScreen from './src/screens/LoginScreen';
 import SetupStep1Screen from './src/screens/SetupStep1Screen';
 import SetupStep2Screen from './src/screens/SetupStep2Screen';
@@ -14,6 +14,8 @@ import AlertDetailScreen from './src/screens/AlertDetailScreen';
 import ChallengesScreen from './src/screens/ChallengesScreen';
 import BadgesScreen from './src/screens/BadgesScreen';
 import BadgeSummaryScreen from './src/screens/BadgeSummaryScreen';
+import SetupPromptScreen from './src/screens/SetupPromptScreen';
+import SensorSettingsScreen from './src/screens/SensorSettingsScreen';
 import { MAX_CONTENT_WIDTH, useResponsive } from './src/utils/responsive';
 import { COLORS } from './src/theme/colors';
 
@@ -22,6 +24,7 @@ function Navigator() {
   const [stack, setStack] = useState([{ name: 'login', params: {} }]);
   const [activeTab, setActiveTab] = useState('home');
   const { isWide } = useResponsive();
+  const { sensor, sensorReady, startSetupDraft, finishSetupDraft } = useApp();
 
   const navigation = useMemo(
     () => ({
@@ -38,9 +41,22 @@ function Navigator() {
         setActiveTab('home');
         setStack([{ name: 'login', params: {} }]);
       },
+      // Abre el asistente para dar de alta un sensor (empieza con valores por defecto).
+      startSetup: () => {
+        startSetupDraft();
+        setStack((s) => [...s, { name: 'setup1', params: {} }]);
+      },
     }),
-    []
+    [startSetupDraft]
   );
+
+  // Al iniciar sesión: con sensor registrado entra directo; si no, pregunta si quiere configurarlo.
+  const handleLogin = () => {
+    if (sensor) navigation.switchTab('home');
+    else navigation.reset('setupPrompt');
+  };
+
+  const loginScreen = <LoginScreen onLogin={handleLogin} loading={!sensorReady} />;
 
   // Botón "atrás" de Android
   useEffect(() => {
@@ -59,13 +75,25 @@ function Navigator() {
   const renderScreen = () => {
     switch (route.name) {
       case 'login':
-        return <LoginScreen onLogin={() => navigation.navigate('setup1')} />;
+        return loginScreen;
+      case 'setupPrompt':
+        return <SetupPromptScreen onConfigure={navigation.startSetup} onSkip={() => navigation.switchTab('home')} />;
+      case 'sensorSettings':
+        return <SensorSettingsScreen navigation={navigation} />;
       case 'setup1':
         return <SetupStep1Screen onNext={() => navigation.navigate('setup2')} onBack={navigation.goBack} />;
       case 'setup2':
         return <SetupStep2Screen onNext={() => navigation.navigate('setup3')} onBack={navigation.goBack} />;
       case 'setup3':
-        return <SetupStep3Screen onFinish={() => navigation.switchTab('home')} onBack={navigation.goBack} />;
+        return (
+          <SetupStep3Screen
+            onFinish={(thresholds) => {
+              finishSetupDraft(thresholds);
+              navigation.switchTab('home');
+            }}
+            onBack={navigation.goBack}
+          />
+        );
       case 'main':
         return <MainTabsScreen activeTab={activeTab} navigation={navigation} />;
       case 'consumption':
@@ -79,12 +107,13 @@ function Navigator() {
       case 'badgeSummary':
         return <BadgeSummaryScreen navigation={navigation} />;
       default:
-        return <LoginScreen onLogin={() => navigation.navigate('setup1')} />;
+        return loginScreen;
     }
   };
 
   // Texto claro sobre las barras azules; oscuro en pantallas con fondo claro.
-  const lightBackground = route.name === 'login' || (route.name === 'main' && activeTab === 'home');
+  const lightBackground =
+    route.name === 'login' || route.name === 'setupPrompt' || (route.name === 'main' && activeTab === 'home');
 
   return (
     <>

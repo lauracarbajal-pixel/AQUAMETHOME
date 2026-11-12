@@ -5,7 +5,7 @@ import LineChart from '../../components/charts/LineChart';
 import Icon from '../../components/Icon';
 import { Card, StatusDot } from '../../components/ui';
 import { useApp } from '../../context/AppContext';
-import { buildLevelPeriods, dateLabel, timeLabel12 } from '../../utils/format';
+import { HISTORY_RANGES, buildLevelSeries, dateLabel, timeLabel12 } from '../../utils/format';
 import { COLORS } from '../../theme/colors';
 
 const EVENT_COLORS = {
@@ -17,59 +17,107 @@ const EVENT_COLORS = {
 
 export default function HistoryTab() {
   const { tank, samples, events } = useApp();
-  const periods = useMemo(() => buildLevelPeriods(samples), [samples]);
-  const [periodIndex, setPeriodIndex] = useState(0);
-  const period = periods[Math.min(periodIndex, periods.length - 1)];
-  const canGoOlder = periodIndex < periods.length - 1;
-  const canGoNewer = periodIndex > 0;
+  const [rangeKey, setRangeKey] = useState('week'); // 'day' | 'week' | 'month'
+  const [offset, setOffset] = useState(0); // 0 = periodo actual, 1 = anterior, ...
+
+  const series = useMemo(() => buildLevelSeries(samples, rangeKey, offset), [samples, rangeKey, offset]);
+  const periodEvents = useMemo(
+    () => events.filter((e) => e.ts >= series.start && e.ts < series.end),
+    [events, series.start, series.end]
+  );
+
+  const changeRange = (key) => {
+    setRangeKey(key);
+    setOffset(0);
+  };
 
   return (
     <View style={styles.container}>
       <HeaderWithBack title="Historial de Nivel" />
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Tipo de periodo */}
+        <View style={styles.segmented} accessibilityRole="tablist">
+          {HISTORY_RANGES.map((r) => {
+            const active = r.key === rangeKey;
+            return (
+              <TouchableOpacity
+                key={r.key}
+                onPress={() => changeRange(r.key)}
+                style={[styles.segment, active && styles.segmentActive]}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{r.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         <Card>
+          {/* Navegación entre periodos */}
           <View style={styles.periodRow}>
             <TouchableOpacity
-              onPress={() => setPeriodIndex((i) => i + 1)}
-              disabled={!canGoOlder}
-              style={[styles.periodBtn, !canGoOlder && styles.disabled]}
+              onPress={() => setOffset((o) => o + 1)}
+              disabled={!series.canGoOlder}
+              style={[styles.periodBtn, !series.canGoOlder && styles.disabled]}
               accessibilityRole="button"
               accessibilityLabel="Periodo anterior"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Icon name="chevronLeft" color={COLORS.textPrimary} />
             </TouchableOpacity>
-            <Text style={styles.periodLabel}>{period.label}</Text>
+            <View style={styles.periodCenter}>
+              <Text style={styles.periodLabel} numberOfLines={1}>
+                {series.label}
+              </Text>
+              <Text style={styles.periodRange}>{series.rangeText}</Text>
+            </View>
             <TouchableOpacity
-              onPress={() => setPeriodIndex((i) => i - 1)}
-              disabled={!canGoNewer}
-              style={[styles.periodBtn, !canGoNewer && styles.disabled]}
+              onPress={() => setOffset((o) => Math.max(0, o - 1))}
+              disabled={!series.canGoNewer}
+              style={[styles.periodBtn, !series.canGoNewer && styles.disabled]}
               accessibilityRole="button"
               accessibilityLabel="Periodo siguiente"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Icon name="chevronRight" color={COLORS.textPrimary} />
             </TouchableOpacity>
           </View>
 
-          {period.points.length > 0 ? (
+          {offset > 0 ? (
+            <TouchableOpacity onPress={() => setOffset(0)} style={styles.todayLink} accessibilityRole="button">
+              <Text style={styles.todayLinkText}>Volver al periodo actual</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {series.points.length > 0 ? (
             <>
-              <LineChart data={period.points} threshold={tank.minLevel} />
+              <LineChart data={series.points} threshold={tank.minLevel} />
 
               <View style={styles.legendRow}>
                 <View style={styles.legendDash} />
                 <Text style={styles.legendText}>Nivel mínimo ({tank.minLevel}%)</Text>
               </View>
+
+              {series.stats ? (
+                <View style={styles.statsRow}>
+                  <Stat label="Promedio" value={`${series.stats.avg}%`} />
+                  <Stat label="Mínimo" value={`${series.stats.min}%`} />
+                  <Stat label="Máximo" value={`${series.stats.max}%`} />
+                </View>
+              ) : null}
             </>
           ) : (
-            <Text style={styles.emptyText}>Aún no hay lecturas del sensor en este periodo.</Text>
+            <Text style={styles.emptyText}>No hay lecturas del sensor en este periodo.</Text>
           )}
         </Card>
 
         <Card>
-          <Text style={styles.cardTitle}>Registro de eventos</Text>
-          {events.length === 0 ? (
-            <Text style={styles.emptyText}>Todavía no hay eventos registrados.</Text>
+          <Text style={styles.cardTitle}>Eventos del periodo</Text>
+          {periodEvents.length === 0 ? (
+            <Text style={styles.emptyText}>No hay eventos registrados en este periodo.</Text>
           ) : (
-            events.map((event, i) => (
+            periodEvents.map((event, i) => (
               <View key={event.id} style={[styles.eventRow, i > 0 && styles.eventDivider]}>
                 <View style={styles.eventDot}>
                   <StatusDot color={EVENT_COLORS[event.type]} size={10} />
@@ -89,6 +137,15 @@ export default function HistoryTab() {
   );
 }
 
+function Stat({ label, value }) {
+  return (
+    <View style={styles.stat}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -97,6 +154,33 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 24,
+  },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.borderLight,
+    padding: 4,
+    marginBottom: 14,
+  },
+  segment: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 9,
+    borderRadius: 10,
+  },
+  segmentActive: {
+    backgroundColor: COLORS.primary,
+  },
+  segmentText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.textPrimary,
+  },
+  segmentTextActive: {
+    color: COLORS.white,
+    fontWeight: '800',
   },
   periodRow: {
     flexDirection: 'row',
@@ -107,6 +191,11 @@ const styles = StyleSheet.create({
   periodBtn: {
     padding: 6,
   },
+  periodCenter: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 6,
+  },
   disabled: {
     opacity: 0.3,
   },
@@ -114,6 +203,21 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: COLORS.textStrong,
+  },
+  periodRange: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  todayLink: {
+    alignSelf: 'center',
+    paddingVertical: 4,
+    marginBottom: 6,
+  },
+  todayLinkText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: COLORS.primary,
   },
   emptyText: {
     fontSize: 14,
@@ -136,6 +240,27 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 12,
     color: COLORS.textSecondary,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.borderLight,
+  },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textStrong,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   cardTitle: {
     fontSize: 18,
