@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { BackHandler, StyleSheet } from 'react-native';
+import { BackHandler, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppProvider } from './src/context/AppContext';
@@ -14,11 +14,14 @@ import AlertDetailScreen from './src/screens/AlertDetailScreen';
 import ChallengesScreen from './src/screens/ChallengesScreen';
 import BadgesScreen from './src/screens/BadgesScreen';
 import BadgeSummaryScreen from './src/screens/BadgeSummaryScreen';
+import { MAX_CONTENT_WIDTH, useResponsive } from './src/utils/responsive';
+import { COLORS } from './src/theme/colors';
 
 // Navegación simple basada en una pila de pantallas (sin librerías externas).
 function Navigator() {
   const [stack, setStack] = useState([{ name: 'login', params: {} }]);
   const [activeTab, setActiveTab] = useState('home');
+  const { isWide } = useResponsive();
 
   const navigation = useMemo(
     () => ({
@@ -29,6 +32,11 @@ function Navigator() {
       switchTab: (tab) => {
         setActiveTab(tab);
         setStack([{ name: 'main', params: {} }]);
+      },
+      // Cierra sesión: vuelve al inicio de sesión y borra el historial de pantallas.
+      logout: () => {
+        setActiveTab('home');
+        setStack([{ name: 'login', params: {} }]);
       },
     }),
     []
@@ -81,7 +89,8 @@ function Navigator() {
   return (
     <>
       <StatusBar style={lightBackground ? 'dark' : 'light'} />
-      {renderScreen()}
+      {/* En tablets y navegador el contenido se centra con un ancho máximo */}
+      <View style={[styles.frame, isWide && styles.frameWide]}>{renderScreen()}</View>
     </>
   );
 }
@@ -100,5 +109,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#EBF5FF',
+  },
+  frame: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
+    overflow: 'hidden',
+  },
+  frameWide: {
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: COLORS.borderLight,
   },
 });

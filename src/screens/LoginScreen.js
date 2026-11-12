@@ -12,15 +12,20 @@ import AQUAMETLogo from '../components/AQUAMETLogo';
 import WaterMascot from '../components/WaterMascot';
 import FloatingInput from '../components/FloatingInput';
 import { COLORS } from '../theme/colors';
+import { useResponsive } from '../utils/responsive';
 
 export default function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('laura.carbajal@aquamet.mx');
   const [password, setPassword] = useState('123456789');
   const insets = useSafeAreaInsets();
+  const { isShort, isCompact, scale } = useResponsive();
+  // En pantallas bajitas la mascota se achica para que el botón quede a la vista
+  const mascotSize = isShort ? 95 : scale(130);
 
   return (
     <View style={styles.safeArea}>
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={[
           styles.scrollContent,
           { paddingTop: insets.top + 15, paddingBottom: insets.bottom + 30 },
@@ -30,10 +35,10 @@ export default function LoginScreen({ onLogin }) {
         <AQUAMETLogo size="large" />
 
         {/* Mascot */}
-        <WaterMascot size={130} />
+        <WaterMascot size={mascotSize} />
 
         {/* Tagline */}
-        <Text style={styles.tagline}>
+        <Text style={[styles.tagline, { fontSize: scale(22), lineHeight: scale(28) }]}>
           Monitorea tu tinaco de{'\n'}agua fácilmente.
         </Text>
 
@@ -55,7 +60,7 @@ export default function LoginScreen({ onLogin }) {
             secureTextEntry
           />
 
-          <View style={styles.signupRow}>
+          <View style={[styles.signupRow, isCompact && styles.signupRowCompact]}>
             <Text style={styles.newUserText}>¿Nuevo en AQUAMET?</Text>
             <TouchableOpacity onPress={() => alert('Crear una cuenta')}>
               <Text style={styles.signupText}>Crear una cuenta</Text>
@@ -125,6 +130,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 14,
+  },
+  // En teléfonos angostos el texto y el enlace se apilan para no encimarse
+  signupRowCompact: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
   newUserText: {
     fontSize: 14,

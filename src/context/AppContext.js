@@ -184,6 +184,15 @@ export function AppProvider({ children }) {
     [challenges]
   );
 
+  // Insignia obtenida más recientemente (o null si aún no tiene ninguna)
+  const latestBadge = useMemo(
+    () =>
+      badges
+        .filter((b) => b.earned)
+        .reduce((latest, b) => (!latest || (b.earnedAt || 0) > (latest.earnedAt || 0) ? b : latest), null),
+    [badges]
+  );
+
   const value = useMemo(
     () => ({
       tank,
@@ -198,8 +207,9 @@ export function AppProvider({ children }) {
       challenges,
       claimChallenge,
       badges,
+      latestBadge,
     }),
-    [tank, updateTank, connection, samples, events, alerts, markAlertReviewing, resolveAlert, points, challenges, claimChallenge, badges]
+    [tank, updateTank, connection, samples, events, alerts, markAlertReviewing, resolveAlert, points, challenges, claimChallenge, badges, latestBadge]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

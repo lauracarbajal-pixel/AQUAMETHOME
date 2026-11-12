@@ -71,12 +71,13 @@ export const INITIAL_CHALLENGES = [
 ];
 
 // tier: bronze | silver | gold | green   icon: tree | drop | star | leaf | person | globe
+// earnedAt: fecha en que se obtuvo la insignia (solo las obtenidas).
 export const BADGES = [
-  { id: 'b1', name: 'Guardián del Agua', description: 'Mantuviste tu tinaco sin fugas durante un mes.', tier: 'bronze', icon: 'tree', earned: true },
-  { id: 'b2', name: 'Monitor Maestro', description: 'Revisaste el nivel de tu tinaco 30 días seguidos.', tier: 'silver', icon: 'drop', earned: true },
-  { id: 'b3', name: 'Eco-Héroe', description: 'Ahorraste más de 500 L en un mes.', tier: 'gold', icon: 'star', earned: true },
-  { id: 'b4', name: 'Raíz Verde', description: 'Completaste tu primer reto semanal.', tier: 'green', icon: 'leaf', earned: true },
-  { id: 'b5', name: 'Vigía del Tinaco', description: 'Resolviste tu primera alerta.', tier: 'gold', icon: 'person', earned: true },
+  { id: 'b1', name: 'Guardián del Agua', description: 'Mantuviste tu tinaco sin fugas durante un mes.', tier: 'bronze', icon: 'tree', earned: true, earnedAt: new Date(2026, 7, 14).getTime() },
+  { id: 'b2', name: 'Monitor Maestro', description: 'Revisaste el nivel de tu tinaco 30 días seguidos.', tier: 'silver', icon: 'drop', earned: true, earnedAt: new Date(2026, 8, 2).getTime() },
+  { id: 'b3', name: 'Eco-Héroe', description: 'Ahorraste más de 500 L en un mes.', tier: 'gold', icon: 'star', earned: true, earnedAt: new Date(2026, 8, 28).getTime() },
+  { id: 'b4', name: 'Raíz Verde', description: 'Completaste tu primer reto semanal.', tier: 'green', icon: 'leaf', earned: true, earnedAt: new Date(2026, 9, 12).getTime() },
+  { id: 'b5', name: 'Vigía del Tinaco', description: 'Resolviste tu primera alerta.', tier: 'gold', icon: 'person', earned: true, earnedAt: new Date(2026, 9, 30).getTime() },
   { id: 'b6', name: 'Cazafugas', description: 'Resuelve 5 alertas de fuga.', tier: 'silver', icon: 'drop', earned: false },
   { id: 'b7', name: 'Ciudadano del Planeta', description: 'Ahorra 10% durante un mes completo.', tier: 'green', icon: 'globe', earned: false },
   { id: 'b8', name: 'Racha de Oro', description: 'Cumple 4 metas semanales seguidas.', tier: 'gold', icon: 'star', earned: false },
