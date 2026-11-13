@@ -10,6 +10,9 @@ export const INITIAL_TANK = {
   sensorModel: 'AM-01',
 };
 
+// Ubicaciones posibles del tinaco (asistente y ajustes del sensor)
+export const TANK_LOCATIONS = ['Azotea', 'Jardín', 'Patio Trasero', 'CISTERNA'];
+
 // Litros consumidos por día: semana actual vs. semana pasada
 export const WEEKLY_CONSUMPTION = [
   { label: 'L', current: 88, previous: 98 },

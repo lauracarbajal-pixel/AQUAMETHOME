@@ -12,14 +12,14 @@ import { useApp } from '../context/AppContext';
 import { COLORS } from '../theme/colors';
 
 export default function SetupStep3Screen({ onFinish, onBack }) {
-  const { tank, updateTank } = useApp();
-  const [minLevel, setMinLevel] = useState(tank.minLevel);
-  const [criticalLevel, setCriticalLevel] = useState(tank.criticalLevel);
+  const { setupDraft } = useApp();
+  const [minLevel, setMinLevel] = useState(setupDraft.minLevel);
+  const [criticalLevel, setCriticalLevel] = useState(setupDraft.criticalLevel);
 
+  // Termina el alta: quien abre esta pantalla registra el sensor con estos umbrales.
   const handleFinish = () => {
     // El nivel crítico no puede quedar por encima del mínimo.
-    updateTank({ minLevel, criticalLevel: Math.min(criticalLevel, minLevel) });
-    onFinish();
+    onFinish({ minLevel, criticalLevel: Math.min(criticalLevel, minLevel) });
   };
 
   return (

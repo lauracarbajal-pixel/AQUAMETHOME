@@ -4,19 +4,55 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AQUAMETLogo from '../../components/AQUAMETLogo';
 import TinacoGraphic from '../../components/TinacoGraphic';
 import BadgeMedal from '../../components/BadgeMedal';
+import WaterMascot from '../../components/WaterMascot';
 import Icon from '../../components/Icon';
-import { Card } from '../../components/ui';
+import { Button, Card } from '../../components/ui';
 import { useApp } from '../../context/AppContext';
 import { WEEKLY_CONSUMPTION } from '../../data/mockData';
 import { getTankStatus } from '../../utils/status';
 import { dateLabel, timeLabel12 } from '../../utils/format';
+import { useResponsive } from '../../utils/responsive';
 import { COLORS } from '../../theme/colors';
 
 const LOGOUT_MESSAGE = '¿Seguro que quieres cerrar sesión?';
+const REPLACE_SENSOR_MESSAGE =
+  'Por ahora la app maneja un solo sensor. Si configuras uno nuevo, reemplazará al actual. ¿Quieres continuar?';
+
+// Alert.alert no muestra botones en la web, ahí se usa el confirm del navegador.
+function confirmAction({ title, message, confirmText, onConfirm }) {
+  if (Platform.OS === 'web') {
+    if (window.confirm(message)) onConfirm();
+    return;
+  }
+  Alert.alert(title, message, [
+    { text: 'Cancelar', style: 'cancel' },
+    { text: confirmText, style: 'destructive', onPress: onConfirm },
+  ]);
+}
+
+// Botón de ícono con etiqueta para la barra superior de Inicio
+function HeaderAction({ icon, label, a11y, onPress, compact, style }) {
+  return (
+    <TouchableOpacity
+      style={[styles.action, style]}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+    >
+      <Icon name={icon} color={COLORS.textSecondary} />
+      {compact ? null : <Text style={styles.sideLabel}>{label}</Text>}
+    </TouchableOpacity>
+  );
+}
 
 export default function HomeTab({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { tank, connection, latestBadge } = useApp();
+  const { tank, connection, latestBadge, sensor } = useApp();
+  const { width } = useResponsive();
+  // Con etiquetas la barra superior necesita ~330 px; en teléfonos angostos solo se muestran los íconos
+  const isCompact = width < 380;
+  const hasSensor = Boolean(sensor);
   const hasReading = tank.lastUpdate != null;
   const status = hasReading
     ? getTankStatus({ level: tank.level, minLevel: tank.minLevel, criticalLevel: tank.criticalLevel })
@@ -26,61 +62,76 @@ export default function HomeTab({ navigation }) {
 
   const avgDaily = Math.round(WEEKLY_CONSUMPTION.reduce((s, d) => s + d.current, 0) / WEEKLY_CONSUMPTION.length);
 
-  // Alert.alert no muestra botones en la web, ahí se usa el confirm del navegador.
-  const confirmLogout = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm(LOGOUT_MESSAGE)) navigation.logout();
+  const confirmLogout = () =>
+    confirmAction({ title: 'Cerrar sesión', message: LOGOUT_MESSAGE, confirmText: 'Cerrar sesión', onConfirm: navigation.logout });
+
+  // + : alta de un sensor. Por ahora la app maneja un solo sensor, así que el nuevo reemplaza al actual.
+  const handleAddSensor = () => {
+    if (!hasSensor) {
+      navigation.startSetup();
       return;
     }
-    Alert.alert('Cerrar sesión', LOGOUT_MESSAGE, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Cerrar sesión', style: 'destructive', onPress: navigation.logout },
-    ]);
+    confirmAction({
+      title: 'Agregar sensor',
+      message: REPLACE_SENSOR_MESSAGE,
+      confirmText: 'Continuar',
+      onConfirm: navigation.startSetup,
+    });
   };
+
+  const sideSlotStyle = isCompact ? styles.sideSlotCompact : styles.sideSlot;
 
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 8 }]}>
       <View style={styles.topRow}>
-        <TouchableOpacity
-          style={[styles.sideSlot, styles.logoutButton]}
-          onPress={confirmLogout}
-          accessibilityRole="button"
-          accessibilityLabel="Cerrar sesión"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Icon name="logout" color={COLORS.textSecondary} />
-          <Text style={styles.sideLabel}>Salir</Text>
-        </TouchableOpacity>
-        <AQUAMETLogo size="small" />
-        <TouchableOpacity
-          style={[styles.sideSlot, styles.settingsButton]}
-          onPress={() => navigation.navigate('setup1')}
-          accessibilityRole="button"
-          accessibilityLabel="Configuración del tinaco"
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Icon name="gear" color={COLORS.textSecondary} />
-          <Text style={styles.sideLabel}>Ajustes</Text>
-        </TouchableOpacity>
-      </View>
-
-      <TinacoGraphic levelPercentage={tank.level} capacityLitros={tank.capacity} />
-
-      <View style={[styles.statusPill, { backgroundColor: status.bg, borderColor: status.border }]}>
-        <View style={[styles.statusIcon, { backgroundColor: status.color }]}>
-          <Icon name={status.icon} size={15} color={COLORS.white} strokeWidth={3.2} />
+        <View style={[sideSlotStyle, styles.sideLeft]}>
+          <HeaderAction icon="logout" label="Salir" a11y="Cerrar sesión" onPress={confirmLogout} compact={isCompact} />
         </View>
-        <Text style={[styles.statusText, { color: status.color }]} numberOfLines={1} adjustsFontSizeToFit>
-          Estado: {status.label}
-        </Text>
+        <AQUAMETLogo size="small" />
+        <View style={[sideSlotStyle, styles.sideRight]}>
+          <HeaderAction icon="plus" label="Agregar" a11y="Agregar sensor" onPress={handleAddSensor} compact={isCompact} />
+          {hasSensor ? (
+            <HeaderAction
+              icon="gear"
+              label="Ajustes"
+              a11y="Ajustes del sensor"
+              onPress={() => navigation.navigate('sensorSettings')}
+              compact={isCompact}
+              style={styles.actionGap}
+            />
+          ) : null}
+        </View>
       </View>
 
-      {hasReading ? (
-        <Text style={styles.lastUpdate}>
-          Última actualización: {timeLabel12(tank.lastUpdate)}
-          {connection === 'offline' ? ' (sin conexión)' : ''}
-        </Text>
-      ) : null}
+      {hasSensor ? (
+        <>
+          <TinacoGraphic levelPercentage={tank.level} capacityLitros={tank.capacity} />
+
+          <View style={[styles.statusPill, { backgroundColor: status.bg, borderColor: status.border }]}>
+            <View style={[styles.statusIcon, { backgroundColor: status.color }]}>
+              <Icon name={status.icon} size={15} color={COLORS.white} strokeWidth={3.2} />
+            </View>
+            <Text style={[styles.statusText, { color: status.color }]} numberOfLines={1} adjustsFontSizeToFit>
+              Estado: {status.label}
+            </Text>
+          </View>
+
+          {hasReading ? (
+            <Text style={styles.lastUpdate}>
+              Última actualización: {timeLabel12(tank.lastUpdate)}
+              {connection === 'offline' ? ' (sin conexión)' : ''}
+            </Text>
+          ) : null}
+        </>
+      ) : (
+        // Sin sensor registrado: invitación a configurarlo
+        <Card style={styles.noSensorCard}>
+          <WaterMascot size={90} />
+          <Text style={styles.noSensorTitle}>Aún no tienes un sensor registrado</Text>
+          <Text style={styles.noSensorText}>Configúralo para ver el nivel de tu tinaco y recibir alertas.</Text>
+          <Button title="Configurar sensor" iconLeft="plus" onPress={navigation.startSetup} style={styles.noSensorButton} />
+        </Card>
+      )}
 
       {/* Insignia más reciente → lleva a Recompensas */}
       <TouchableOpacity
@@ -153,15 +204,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  // Ambos lados miden lo mismo para que el logo quede centrado
   sideSlot: {
-    width: 56,
+    width: 100,
+    flexDirection: 'row',
     paddingVertical: 6,
   },
-  logoutButton: {
-    alignItems: 'flex-start',
+  sideSlotCompact: {
+    width: 64,
+    flexDirection: 'row',
+    paddingVertical: 6,
   },
-  settingsButton: {
-    alignItems: 'flex-end',
+  sideLeft: {
+    justifyContent: 'flex-start',
+  },
+  sideRight: {
+    justifyContent: 'flex-end',
+  },
+  action: {
+    alignItems: 'center',
+    minWidth: 28,
+  },
+  actionGap: {
+    marginLeft: 12,
+  },
+  noSensorCard: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 0,
+  },
+  noSensorTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.textStrong,
+    textAlign: 'center',
+  },
+  noSensorText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  noSensorButton: {
+    marginTop: 14,
+    alignSelf: 'stretch',
   },
   sideLabel: {
     fontSize: 11,

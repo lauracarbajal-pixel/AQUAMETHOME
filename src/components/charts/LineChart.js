@@ -18,6 +18,11 @@ export default function LineChart({ data, height = 200, color = COLORS.primary, 
   const line = data.map((d, i) => `${i ? 'L' : 'M'}${x(i)} ${y(d.value)}`).join(' ');
   const area = `${line} L${x(data.length - 1)} ${y(0)} L${x(0)} ${y(0)} Z`;
 
+  // Con muchos puntos (vista de día o de mes) se muestran menos etiquetas y puntos más chicos
+  const maxLabels = Math.max(2, Math.floor(chartW / 34));
+  const labelStep = Math.max(1, Math.ceil(data.length / maxLabels));
+  const dotRadius = data.length > 14 ? 3 : 4.5;
+
   return (
     <View
       style={{ height }}
@@ -55,14 +60,14 @@ export default function LineChart({ data, height = 200, color = COLORS.primary, 
               key={`p${i}`}
               cx={x(i)}
               cy={y(d.value)}
-              r={4.5}
+              r={dotRadius}
               fill={threshold != null && d.value <= threshold ? COLORS.warning : color}
               stroke={COLORS.white}
               strokeWidth={1.5}
             />
           ))}
 
-          {data.map((d, i) => (
+          {data.map((d, i) => (i % labelStep !== 0 ? null : (
             <G key={`l${i}`}>
               <SvgText x={x(i)} y={height - 18} fontSize={10} fill={COLORS.textPrimary} textAnchor="middle">
                 {d.day}
@@ -71,7 +76,7 @@ export default function LineChart({ data, height = 200, color = COLORS.primary, 
                 {d.month}
               </SvgText>
             </G>
-          ))}
+          )))}
         </Svg>
       ) : null}
     </View>

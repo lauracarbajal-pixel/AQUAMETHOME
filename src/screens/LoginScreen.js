@@ -14,7 +14,8 @@ import FloatingInput from '../components/FloatingInput';
 import { COLORS } from '../theme/colors';
 import { useResponsive } from '../utils/responsive';
 
-export default function LoginScreen({ onLogin }) {
+// `loading`: mientras se lee del teléfono si ya hay un sensor registrado
+export default function LoginScreen({ onLogin, loading = false }) {
   const [email, setEmail] = useState('laura.carbajal@aquamet.mx');
   const [password, setPassword] = useState('123456789');
   const insets = useSafeAreaInsets();
@@ -69,8 +70,14 @@ export default function LoginScreen({ onLogin }) {
         </View>
 
         {/* Primary Action Button */}
-        <TouchableOpacity style={styles.primaryButton} onPress={onLogin}>
-          <Text style={styles.primaryButtonText}>Comenzar</Text>
+        <TouchableOpacity
+          style={[styles.primaryButton, loading && { opacity: 0.6 }]}
+          onPress={onLogin}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: loading, busy: loading }}
+        >
+          <Text style={styles.primaryButtonText}>{loading ? 'Cargando…' : 'Comenzar'}</Text>
         </TouchableOpacity>
 
         {/* Bottom Status Circle Indicator */}
